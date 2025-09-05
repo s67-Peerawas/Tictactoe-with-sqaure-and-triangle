@@ -1,0 +1,414 @@
+import 'package:flutter/material.dart';
+import 'dart:math';
+
+void main() {
+  runApp(MyApp());
+}
+
+const int boardSize = 3;
+const String playerSquare = "□";
+const String playerTriangle = "△";
+const Color squareColor = Colors.blue;
+const Color triangleColor = Colors.redAccent;
+const double lineStrokeWidth = 3;
+const double markStrokeWidth = 6;
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: SafeArea(child: Scaffold(body: GameBoard())),
+    );
+  }
+}
+
+class GameBoard extends StatefulWidget {
+  @override
+  _GameBoardState createState() => _GameBoardState();
+}
+
+class _GameBoardState extends State<GameBoard> {
+  List<List<String>> board = List.generate(
+    boardSize,
+    (_) => List.generate(boardSize, (_) => ""),
+  );
+
+  bool playerTurn = false;
+  String winner = "";
+
+  void _tableTap(TapDownDetails details, double tableWidth) {
+    double cellSize = tableWidth / boardSize;
+    int col = (details.localPosition.dx / cellSize).floor();
+    int row = (details.localPosition.dy / cellSize).floor();
+
+    if (row >= 0 &&
+        row < boardSize &&
+        col >= 0 &&
+        col < boardSize &&
+        board[row][col] == '') {
+      setState(() {
+        board[row][col] = playerTurn ? playerTriangle : playerSquare;
+        playerTurn = !playerTurn;
+      });
+    }
+  }
+
+  String playerText() {
+    return playerTurn ? playerTriangle : playerSquare;
+  }
+
+  String showWinner(List<List<String>> b) {
+    int i = 0;
+    while (i < boardSize) {
+      if (b[i][0] != "") {
+        int j = 1;
+        bool win = true;
+        while (j < boardSize) {
+          if (b[i][j] != b[i][0]) {
+            win = false;
+            break;
+          }
+          j++;
+        }
+        if (win) return b[i][0];
+      }
+      i++;
+    }
+
+    int col = 0;
+    while (col < boardSize) {
+      if (b[0][col] != "") {
+        int row = 1;
+        bool win = true;
+        while (row < boardSize) {
+          if (b[row][col] != b[0][col]) {
+            win = false;
+            break;
+          }
+          row++;
+        }
+        if (win) return b[0][col];
+      }
+      col++;
+    }
+
+    if (b[0][0] != "") {
+      int k = 1;
+      bool win = true;
+      while (k < boardSize) {
+        if (b[k][k] != b[0][0]) {
+          win = false;
+          break;
+        }
+        k++;
+      }
+      if (win) return b[0][0];
+    }
+
+    if (b[0][boardSize - 1] != "") {
+      int k = 1;
+      bool win = true;
+      while (k < boardSize) {
+        if (b[k][boardSize - 1 - k] != b[0][boardSize - 1]) {
+          win = false;
+          break;
+        }
+        k++;
+      }
+      if (win) return b[0][boardSize - 1];
+    }
+
+    int r = 0;
+    while (r < boardSize) {
+      int c = 0;
+      while (c < boardSize) {
+        if (b[r][c] == "") {
+          return "";
+        }
+        c++;
+      }
+      r++;
+    }
+
+    return "Tie";
+  }
+
+  void clearBoard() {
+    setState(() {
+      for (int i = 0; i < boardSize; i++) {
+        for (int j = 0; j < boardSize; j++) {
+          board[i][j] = "";
+        }
+      }
+      winner = "";
+      playerTurn = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double tableSize = MediaQuery.of(context).size.width;
+    winner = showWinner(board);
+    return Scaffold(
+      body: GestureDetector(
+        onTapDown: (details) {
+          if (winner == "") {
+            _tableTap(details, tableSize);
+          }
+        },
+        child: Column(
+          children: [
+            SizedBox(
+              width: tableSize,
+              height: tableSize,
+              child: Stack(
+                children: [
+                  CustomPaint(
+                    size: Size(tableSize, tableSize),
+                    painter: GridPainter(),
+                  ),
+                  ...List.generate(boardSize, (row) {
+                    return List.generate(boardSize, (col) {
+                      final mark = board[row][col];
+                      if (mark == "") return SizedBox.shrink();
+
+                      double cellSize = tableSize / boardSize;
+                      return Positioned(
+                        left: col * cellSize,
+                        top: row * cellSize,
+                        width: cellSize,
+                        height: cellSize,
+                        child: Center(
+                          child: mark == playerSquare
+                              ? AnimatedSquare(cellSize: cellSize)
+                              : AnimatedTriangle(cellSize: cellSize),
+                        ),
+                      );
+                    });
+                  }).expand((e) => e).toList(),
+                ],
+              ),
+            ),
+            SizedBox(height: tableSize / 10),
+            Text("Turn : ${playerText()}", style: TextStyle(fontSize: 28)),
+            SizedBox(height: tableSize / 10),
+            if (winner != "")
+              Text("Winner : $winner", style: TextStyle(fontSize: 28)),
+            SizedBox(height: tableSize / 10),
+            if (winner != "")
+              ElevatedButton(
+                onPressed: clearBoard,
+                child: Text(
+                  'Clear board',
+                  style: TextStyle(fontSize: 28, color: Colors.black),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black87
+      ..strokeWidth = lineStrokeWidth;
+
+    double cellWidth = size.width / boardSize;
+    double cellHeight = size.height / boardSize;
+
+    for (int i = 0; i <= boardSize; i++) {
+      canvas.drawLine(
+        Offset(0, cellHeight * i),
+        Offset(size.width, cellHeight * i),
+        paint,
+      );
+      canvas.drawLine(
+        Offset(cellWidth * i, 0),
+        Offset(cellWidth * i, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+class AnimatedSquare extends StatefulWidget {
+  final double cellSize;
+  const AnimatedSquare({Key? key, required this.cellSize}) : super(key: key);
+
+  @override
+  State<AnimatedSquare> createState() => _AnimatedSquareState();
+}
+
+class _AnimatedSquareState extends State<AnimatedSquare>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _progress = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _progress,
+      builder: (context, child) {
+        return CustomPaint(
+          size: Size(widget.cellSize, widget.cellSize),
+          painter: SquarePainter(_progress.value),
+        );
+      },
+    );
+  }
+}
+
+class SquarePainter extends CustomPainter {
+  final double progress;
+  SquarePainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = squareColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = markStrokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final rect = Rect.fromLTWH(
+      size.width * 0.2,
+      size.height * 0.2,
+      size.width * 0.6,
+      size.height * 0.6,
+    );
+
+    final perimeter = rect.width * 2 + rect.height * 2;
+    double len = perimeter * progress;
+
+    Offset a = rect.topLeft;
+    Offset b = rect.topRight;
+    Offset c = rect.bottomRight;
+    Offset d = rect.bottomLeft;
+
+    len = _drawLine(canvas, a, b, len, paint);
+    len = _drawLine(canvas, b, c, len, paint);
+    len = _drawLine(canvas, c, d, len, paint);
+    len = _drawLine(canvas, d, a, len, paint);
+  }
+
+  double _drawLine(Canvas canvas, Offset start, Offset end, double remain, Paint paint) {
+    if (remain <= 0) return 0;
+    final segLen = (end - start).distance;
+    final drawLen = min(segLen, remain);
+    final dir = (end - start) / segLen;
+    final p2 = start + dir * drawLen;
+    canvas.drawLine(start, p2, paint);
+    return remain - drawLen;
+  }
+
+  @override
+  bool shouldRepaint(SquarePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+class AnimatedTriangle extends StatefulWidget {
+  final double cellSize;
+  const AnimatedTriangle({Key? key, required this.cellSize}) : super(key: key);
+
+  @override
+  State<AnimatedTriangle> createState() => _AnimatedTriangleState();
+}
+
+class _AnimatedTriangleState extends State<AnimatedTriangle>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _progress = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _progress,
+      builder: (context, child) {
+        return CustomPaint(
+          size: Size(widget.cellSize, widget.cellSize),
+          painter: TrianglePainter(_progress.value),
+        );
+      },
+    );
+  }
+}
+
+class TrianglePainter extends CustomPainter {
+  final double progress;
+  TrianglePainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = triangleColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = markStrokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final p1 = Offset(size.width / 2, size.height * 0.2);
+    final p2 = Offset(size.width * 0.8, size.height * 0.8);
+    final p3 = Offset(size.width * 0.2, size.height * 0.8);
+
+    final perimeter = (p1 - p2).distance + (p2 - p3).distance + (p3 - p1).distance;
+    double len = perimeter * progress;
+
+    len = _drawLine(canvas, p1, p2, len, paint);
+    len = _drawLine(canvas, p2, p3, len, paint);
+    len = _drawLine(canvas, p3, p1, len, paint);
+  }
+
+  double _drawLine(Canvas canvas, Offset start, Offset end, double remain, Paint paint) {
+    if (remain <= 0) return 0;
+    final segLen = (end - start).distance;
+    final drawLen = min(segLen, remain);
+    final dir = (end - start) / segLen;
+    final p2 = start + dir * drawLen;
+    canvas.drawLine(start, p2, paint);
+    return remain - drawLen;
+  }
+
+  @override
+  bool shouldRepaint(TrianglePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
